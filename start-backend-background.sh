@@ -9,7 +9,21 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$SCRIPT_DIR/backend"
-PYTHON_EXE="$SCRIPT_DIR/.venv/Scripts/python.exe"
+
+for candidate in \
+  "$BACKEND_DIR/.venv/bin/python" \
+  "$BACKEND_DIR/.venv/Scripts/python.exe" \
+  "$SCRIPT_DIR/.venv/bin/python" \
+  "$SCRIPT_DIR/.venv/Scripts/python.exe"
+do
+  if [[ -f "$candidate" ]]; then
+    PYTHON_EXE="$candidate"
+    break
+  fi
+done
+
+PYTHON_EXE="${PYTHON_EXE:-$BACKEND_DIR/.venv/bin/python}"
+
 RUNTIME_DIR="$BACKEND_DIR/runtime"
 LOG_FILE="$RUNTIME_DIR/backend.log"
 PID_FILE="$RUNTIME_DIR/backend.pid"

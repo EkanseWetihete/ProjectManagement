@@ -30,4 +30,4 @@ fi
 git -C "$SCRIPT_DIR" fetch origin "$branch"
 git -C "$SCRIPT_DIR" pull --ff-only origin "$branch"
 
-exec "$SCRIPT_DIR/start-backend.sh"
+exec bash "$SCRIPT_DIR/start-backend.sh"
