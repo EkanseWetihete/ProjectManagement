@@ -1,0 +1,338 @@
+"use client";
+
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
+
+import { AdminPanel } from "@/features/dashboard/components/admin-panel";
+import { BoardColumn } from "@/features/dashboard/components/board-column";
+import { GanttView } from "@/features/dashboard/components/gantt-view";
+import { ListView } from "@/features/dashboard/components/list-view";
+import { StatsStrip } from "@/features/dashboard/components/stats-strip";
+import { TaskModal } from "./task-modal";
+import { TeamView } from "@/features/dashboard/components/team-view";
+import { TopBar } from "@/features/dashboard/components/top-bar";
+import { ViewTabs } from "@/features/dashboard/components/view-tabs";
+import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
+import type { TaskStatus, TaskSummary, ViewMode } from "@/features/dashboard/types";
+import { groupTasksByStatus, toTaskWrite } from "@/features/dashboard/utils";
+
+function DashboardSkeleton() {
+  return (
+    <main className="min-h-screen p-3 md:p-4">
+      <div className="mx-auto max-w-[1520px] animate-pulse space-y-3">
+        <div className="h-24 rounded-[32px] bg-white/6" />
+        <div className="h-14 rounded-[28px] bg-white/6" />
+        <div className="grid gap-4 md:grid-cols-4">
+          {Array.from({ length: 4 }, (_, index) => (
+            <div key={index} className="h-[34rem] rounded-[28px] bg-white/6" />
+          ))}
+        </div>
+      </div>
+    </main>
+  );
+}
+
+export function DashboardScreen() {
+  const { actions, dashboard, error, loading, saving, session } = useDashboard();
+  const [activeView, setActiveView] = useState<ViewMode>("kanban");
+  const [editingTask, setEditingTask] = useState<TaskSummary | null>(null);
+  const [creationStatus, setCreationStatus] = useState<TaskStatus>("todo");
+  const [isCreating, setIsCreating] = useState(false);
+  const [isEditingProject, setIsEditingProject] = useState(false);
+  const [projectName, setProjectName] = useState("");
+  const [projectDescription, setProjectDescription] = useState("");
+  const [dragTaskId, setDragTaskId] = useState<number | null>(null);
+  const [dropTargetStatus, setDropTargetStatus] = useState<TaskStatus | null>(null);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+
+  const deferredTasks = useDeferredValue(dashboard?.tasks ?? []);
+  const groupedTasks = useMemo(() => groupTasksByStatus(deferredTasks), [deferredTasks]);
+
+  useEffect(() => {
+    const activeProject = dashboard?.project;
+    if (!activeProject) {
+      return;
+    }
+
+    setProjectName(activeProject.name);
+    setProjectDescription(activeProject.description);
+    setIsEditingProject(false);
+  }, [dashboard?.project.description, dashboard?.project.id, dashboard?.project.name]);
+
+  if (!dashboard && loading) {
+    return <DashboardSkeleton />;
+  }
+
+  if (!dashboard) {
+    return (
+      <main className="flex min-h-screen items-center justify-center p-4">
+        <div className="w-full max-w-xl rounded-[24px] border border-white/10 bg-[color:var(--panel)] p-6 text-center shadow-[var(--shadow)]">
+          <p className="text-sm uppercase tracking-[0.34em] text-slate-400">Backend</p>
+          <h1 className="mt-3 text-2xl font-semibold text-white">Unable to load board data</h1>
+          <p className="mt-3 text-sm text-slate-300">{error ?? "Start the FastAPI server and refresh."}</p>
+          <button
+            className="mt-5 rounded-xl bg-[color:var(--accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[color:var(--accent-strong)]"
+            onClick={() => void actions.refresh()}
+            type="button"
+          >
+            Retry
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  const canEdit = session.authenticated;
+  const modalOpen = isCreating || Boolean(editingTask);
+  const trimmedProjectName = projectName.trim();
+  const trimmedProjectDescription = projectDescription.trim();
+  const projectChanged =
+    trimmedProjectName !== dashboard.project.name ||
+    trimmedProjectDescription !== dashboard.project.description;
+
+  function openCreate(status: TaskStatus) {
+    setCreationStatus(status);
+    setEditingTask(null);
+    setIsCreating(true);
+  }
+
+  function openEdit(task: TaskSummary) {
+    if (!canEdit) {
+      return;
+    }
+
+    setIsCreating(false);
+    setEditingTask(task);
+  }
+
+  function closeModal() {
+    setEditingTask(null);
+    setIsCreating(false);
+  }
+
+  function cancelProjectEdit() {
+    const activeProject = dashboard?.project;
+    if (!activeProject) {
+      return;
+    }
+
+    setProjectName(activeProject.name);
+    setProjectDescription(activeProject.description);
+    setIsEditingProject(false);
+  }
+
+  async function handleProjectSave() {
+    const activeProject = dashboard?.project;
+    if (!activeProject) {
+      return;
+    }
+
+    const succeeded = await actions.saveProject(activeProject.id, {
+      name: trimmedProjectName,
+      description: trimmedProjectDescription,
+    });
+
+    if (succeeded) {
+      setIsEditingProject(false);
+    }
+  }
+
+  function handleDragStart(task: TaskSummary) {
+    if (!canEdit || saving) {
+      return;
+    }
+
+    setDragTaskId(task.id);
+    setDropTargetStatus(task.status);
+  }
+
+  function handleDragEnd() {
+    setDragTaskId(null);
+    setDropTargetStatus(null);
+  }
+
+  async function moveTaskToStatus(nextStatus: TaskStatus) {
+    if (!canEdit || !dragTaskId || !dashboard) {
+      return;
+    }
+
+    const task = dashboard.tasks.find((item) => item.id === dragTaskId);
+    if (!task) {
+      handleDragEnd();
+      return;
+    }
+
+    const targetTasks = dashboard.tasks.filter(
+      (item) => item.status === nextStatus && item.id !== task.id,
+    );
+    const nextSortOrder = targetTasks.length
+      ? Math.max(...targetTasks.map((item) => item.sort_order)) + 10
+      : 10;
+
+    const succeeded = await actions.saveTask(
+      {
+        ...toTaskWrite(task),
+        status: nextStatus,
+        sort_order: nextSortOrder,
+      },
+      task.id,
+    );
+
+    if (succeeded) {
+      handleDragEnd();
+    }
+  }
+
+  return (
+    <main className="min-h-screen p-3 md:p-4">
+      <div className="mx-auto max-w-[1520px] space-y-3">
+        <div className="relative">
+          <TopBar
+            activeProjectId={dashboard.project.id}
+            busy={loading || saving}
+            canEdit={canEdit}
+            onOpenNewTask={() => openCreate("todo")}
+            onProjectChange={(projectId) => void actions.selectProject(projectId)}
+            onRefresh={() => void actions.refresh()}
+            onToggleAdminPanel={() => setShowAdminPanel((current) => !current)}
+            projectCodeName={dashboard.project.code_name}
+            projects={dashboard.projects}
+            username={session.user?.username ?? null}
+          />
+          {showAdminPanel ? (
+            <AdminPanel
+              busy={saving}
+              onClose={() => setShowAdminPanel(false)}
+              onLogout={actions.signOut}
+              onSubmit={actions.signIn}
+              session={session}
+            />
+          ) : null}
+        </div>
+
+        <section className="rounded-[22px] border border-white/8 bg-[color:var(--panel)] p-4 shadow-[var(--shadow)]">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs uppercase tracking-[0.34em] text-slate-400">Active Project</p>
+                  {isEditingProject ? (
+                    <div className="mt-3 max-w-3xl space-y-2.5">
+                      <input
+                        className="w-full rounded-xl border border-white/10 bg-white/6 px-3 py-2.5 text-xl font-semibold text-white placeholder:text-slate-500 focus:border-[color:var(--accent)] focus:outline-none"
+                        maxLength={120}
+                        onChange={(event) => setProjectName(event.target.value)}
+                        placeholder="Project name"
+                        type="text"
+                        value={projectName}
+                      />
+                      <textarea
+                        className="min-h-24 w-full rounded-xl border border-white/10 bg-white/6 px-3 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:border-[color:var(--accent)] focus:outline-none"
+                        maxLength={600}
+                        onChange={(event) => setProjectDescription(event.target.value)}
+                        placeholder="Project description"
+                        value={projectDescription}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <h1 className="mt-1.5 text-2xl font-semibold text-white">{dashboard.project.name}</h1>
+                      <p className="mt-2 max-w-3xl text-sm text-slate-300">{dashboard.project.description}</p>
+                    </>
+                  )}
+                </div>
+                {canEdit && !isEditingProject ? (
+                  <button
+                    className="rounded-full border border-white/10 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:border-[color:var(--accent)] hover:text-white"
+                    onClick={() => setIsEditingProject(true)}
+                    type="button"
+                  >
+                    Edit details
+                  </button>
+                ) : null}
+              </div>
+              {canEdit && isEditingProject ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    className="rounded-xl bg-[color:var(--accent)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[color:var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={saving || !trimmedProjectName || !projectChanged}
+                    onClick={() => void handleProjectSave()}
+                    type="button"
+                  >
+                    {saving ? "Saving..." : "Save project"}
+                  </button>
+                  <button
+                    className="rounded-xl border border-white/10 px-3 py-2 text-sm font-medium text-slate-300 transition hover:border-white/30 hover:text-white"
+                    disabled={saving}
+                    onClick={cancelProjectEdit}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : null}
+            </div>
+            <StatsStrip stats={dashboard.stats} />
+          </div>
+        </section>
+
+        {error ? (
+          <div className="rounded-xl border border-[color:var(--danger)]/30 bg-[color:var(--danger)]/10 px-3 py-2.5 text-sm text-rose-100">
+            {error}
+          </div>
+        ) : null}
+
+        <ViewTabs activeView={activeView} onChange={setActiveView} />
+
+        {activeView === "kanban" ? (
+          <div className="grid gap-3 xl:grid-cols-4">
+            {dashboard.columns.map((column) => (
+              <BoardColumn
+                activeDragTaskId={dragTaskId}
+                key={column.id}
+                canEdit={canEdit}
+                column={column}
+                isDropTarget={dropTargetStatus === column.id}
+                onAdd={openCreate}
+                onDragEnd={handleDragEnd}
+                onDragOverColumn={setDropTargetStatus}
+                onDragStart={handleDragStart}
+                onDropTask={(status) => void moveTaskToStatus(status)}
+                onEdit={openEdit}
+                tasks={groupedTasks[column.id]}
+              />
+            ))}
+          </div>
+        ) : null}
+
+        {activeView === "gantt" ? <GanttView tasks={dashboard.tasks} /> : null}
+        {activeView === "list" ? <ListView tasks={dashboard.tasks} /> : null}
+        {activeView === "team" ? (
+          <TeamView
+            busy={saving}
+            canEdit={canEdit}
+            onSaveMember={actions.saveMember}
+            onRemoveMember={actions.removeMember}
+            team={dashboard.team}
+            tasks={dashboard.tasks}
+          />
+        ) : null}
+
+        {modalOpen ? (
+          <TaskModal
+            key={editingTask?.id ?? `create-${creationStatus}-${dashboard.project.id}`}
+            busy={saving}
+            mode={editingTask ? "edit" : "create"}
+            onClose={closeModal}
+            onDelete={(taskId: number) => actions.removeTask(taskId, dashboard.project.id)}
+            onSave={actions.saveTask}
+            projectId={dashboard.project.id}
+            statusHint={creationStatus}
+            task={editingTask}
+            tasks={dashboard.tasks}
+            team={dashboard.team}
+          />
+        ) : null}
+      </div>
+    </main>
+  );
+}
