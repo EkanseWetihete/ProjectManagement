@@ -7,6 +7,12 @@ PROJECTS = [
         "code_name": "Project Anime World RPG",
         "description": "Compact production board for a small game team.",
         "is_active": 1,
+    },
+    {
+        "name": "Launch Campaign",
+        "code_name": "Release Marketing Sprint",
+        "description": "Cross-functional release planning for the game's first public reveal.",
+        "is_active": 0,
     }
 ]
 

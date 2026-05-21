@@ -9,9 +9,11 @@ from app.core.config import settings
 from app.db.database import initialize_database
 
 
+settings.updates_path.mkdir(parents=True, exist_ok=True)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    settings.updates_path.mkdir(parents=True, exist_ok=True)
     initialize_database()
     yield
 
