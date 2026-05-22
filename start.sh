@@ -10,6 +10,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$SCRIPT_DIR/backend"
 FRONTEND_DIR="$SCRIPT_DIR/frontend"
+ENV_FILE="$SCRIPT_DIR/.env"
 RUNTIME_DIR="$BACKEND_DIR/runtime"
 BACKEND_PID_FILE="$RUNTIME_DIR/backend.pid"
 FRONTEND_PID_FILE="$RUNTIME_DIR/frontend.pid"
@@ -20,6 +21,47 @@ BACKEND_PORT="${PM_BACKEND_PORT:-8000}"
 FRONTEND_HOST="${PM_FRONTEND_HOST:-0.0.0.0}"
 FRONTEND_PORT="${PM_FRONTEND_PORT:-3000}"
 BACKEND_VENV_DIR="$BACKEND_DIR/.venv"
+
+load_env_file() {
+  local env_file="$1"
+
+  if [[ ! -f "$env_file" ]]; then
+    return 0
+  fi
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+
+    if [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]]; then
+      continue
+    fi
+
+    if [[ "$line" != *=* ]]; then
+      continue
+    fi
+
+    local key="${line%%=*}"
+    local value="${line#*=}"
+
+    if [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+      export "$key=$value"
+    fi
+  done < "$env_file"
+}
+
+load_env_file "$ENV_FILE"
+
+if [[ "${PM_DEVELOPMENT_MODE:-false}" == "true" && "${PM_ALLOW_DEV_START:-0}" != "1" ]]; then
+  echo "start.sh is for production only, but PM_DEVELOPMENT_MODE=true in $ENV_FILE." >&2
+  echo "Set PM_DEVELOPMENT_MODE=false before starting the VPS services." >&2
+  echo "If you intentionally need this, rerun with PM_ALLOW_DEV_START=1." >&2
+  exit 1
+fi
+
+BACKEND_HOST="${PM_BACKEND_HOST:-$BACKEND_HOST}"
+BACKEND_PORT="${PM_BACKEND_PORT:-$BACKEND_PORT}"
+FRONTEND_HOST="${PM_FRONTEND_HOST:-$FRONTEND_HOST}"
+FRONTEND_PORT="${PM_FRONTEND_PORT:-$FRONTEND_PORT}"
 
 for candidate in \
   "$BACKEND_DIR/.venv/bin/python" \
