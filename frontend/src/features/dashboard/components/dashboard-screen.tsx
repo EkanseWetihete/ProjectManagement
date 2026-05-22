@@ -2,6 +2,7 @@
 
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 
+import { PRIORITY_META, STATUS_META } from "@/features/dashboard/constants";
 import { AdminPanel } from "@/features/dashboard/components/admin-panel";
 import { BoardColumn } from "@/features/dashboard/components/board-column";
 import { GanttView } from "@/features/dashboard/components/gantt-view";
@@ -11,8 +12,24 @@ import { TeamView } from "@/features/dashboard/components/team-view";
 import { TopBar } from "@/features/dashboard/components/top-bar";
 import { ViewTabs } from "@/features/dashboard/components/view-tabs";
 import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
-import type { TaskStatus, TaskSummary, ViewMode } from "@/features/dashboard/types";
+import type { TaskPriority, TaskStatus, TaskSummary, ViewMode } from "@/features/dashboard/types";
 import { groupTasksByStatus, toTaskWrite } from "@/features/dashboard/utils";
+
+type KanbanSortField = "assignees" | "end_date" | "priority" | "progress" | "title";
+type KanbanSortDirection = "asc" | "desc";
+type KanbanSortConfig = {
+  direction: KanbanSortDirection;
+  field: KanbanSortField;
+};
+
+const filterClassName =
+  "w-full rounded-xl border border-white/10 bg-white/6 px-3 py-2 text-sm text-white focus:border-[color:var(--accent)] focus:outline-none";
+
+const priorityRank: Record<TaskPriority, number> = {
+  high: 0,
+  medium: 1,
+  low: 2,
+};
 
 function DashboardSkeleton() {
   return (
@@ -42,9 +59,67 @@ export function DashboardScreen() {
   const [dropTargetStatus, setDropTargetStatus] = useState<TaskStatus | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showProjectOptions, setShowProjectOptions] = useState(false);
+  const [kanbanSearchTerm, setKanbanSearchTerm] = useState("");
+  const [kanbanStatusFilter, setKanbanStatusFilter] = useState<TaskStatus | "all">("all");
+  const [kanbanPriorityFilter, setKanbanPriorityFilter] = useState<TaskPriority | "all">("all");
+  const [kanbanSortConfig, setKanbanSortConfig] = useState<KanbanSortConfig>({
+    direction: "asc",
+    field: "end_date",
+  });
+  const [showKanbanControls, setShowKanbanControls] = useState(false);
 
   const deferredTasks = useDeferredValue(dashboard?.tasks ?? []);
-  const groupedTasks = useMemo(() => groupTasksByStatus(deferredTasks), [deferredTasks]);
+  const groupedTasks = useMemo(() => {
+    const normalizedSearch = kanbanSearchTerm.trim().toLowerCase();
+
+    const visibleTasks = [...deferredTasks]
+      .filter((task) => {
+        if (kanbanStatusFilter !== "all" && task.status !== kanbanStatusFilter) {
+          return false;
+        }
+
+        if (kanbanPriorityFilter !== "all" && task.priority !== kanbanPriorityFilter) {
+          return false;
+        }
+
+        if (!normalizedSearch) {
+          return true;
+        }
+
+        const ownerNames = task.assignees.map((assignee) => assignee.name).join(" ").toLowerCase();
+        const haystack = `${task.title} ${task.description} ${ownerNames}`.toLowerCase();
+        return haystack.includes(normalizedSearch);
+      })
+      .sort((left, right) => {
+        let result = 0;
+
+        switch (kanbanSortConfig.field) {
+          case "assignees":
+            result = left.assignees
+              .map((assignee) => assignee.name)
+              .join(", ")
+              .localeCompare(right.assignees.map((assignee) => assignee.name).join(", "));
+            break;
+          case "title":
+            result = left.title.localeCompare(right.title);
+            break;
+          case "priority":
+            result = priorityRank[left.priority] - priorityRank[right.priority];
+            break;
+          case "progress":
+            result = left.progress - right.progress;
+            break;
+          case "end_date":
+          default:
+            result = left.end_date.localeCompare(right.end_date);
+            break;
+        }
+
+        return kanbanSortConfig.direction === "asc" ? result : -result;
+      });
+
+    return groupTasksByStatus(visibleTasks);
+  }, [deferredTasks, kanbanPriorityFilter, kanbanSearchTerm, kanbanSortConfig, kanbanStatusFilter]);
 
   useEffect(() => {
     const activeProject = dashboard?.project;
@@ -56,6 +131,12 @@ export function DashboardScreen() {
     setProjectDescription(activeProject.description);
     setShowProjectOptions(false);
   }, [dashboard?.project.description, dashboard?.project.id, dashboard?.project.name]);
+
+  useEffect(() => {
+    if (activeView !== "kanban") {
+      setShowKanbanControls(false);
+    }
+  }, [activeView]);
 
   if (!dashboard && loading) {
     return <DashboardSkeleton />;
@@ -116,6 +197,13 @@ export function DashboardScreen() {
 
     setProjectName(activeProject.name);
     setProjectDescription(activeProject.description);
+  }
+
+  function resetKanbanControls() {
+    setKanbanSearchTerm("");
+    setKanbanStatusFilter("all");
+    setKanbanPriorityFilter("all");
+    setKanbanSortConfig({ direction: "asc", field: "end_date" });
   }
 
   async function handleProjectSave() {
@@ -279,7 +367,93 @@ export function DashboardScreen() {
           </div>
         ) : null}
 
-        <ViewTabs activeView={activeView} onChange={setActiveView} stats={dashboard.stats} />
+        <ViewTabs
+          activeView={activeView}
+          kanbanControls={
+            <div className="w-full max-w-sm space-y-3 rounded-[20px] border border-white/10 bg-[color:var(--panel-strong)] p-3 shadow-[var(--shadow)] backdrop-blur-xl">
+              <div className="space-y-1">
+                <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Board controls</p>
+              </div>
+              <input
+                className={filterClassName}
+                onChange={(event) => setKanbanSearchTerm(event.target.value)}
+                placeholder="Search tasks or owners"
+                type="search"
+                value={kanbanSearchTerm}
+              />
+              <div className="grid gap-2 sm:grid-cols-2">
+                <select
+                  className={filterClassName}
+                  onChange={(event) => setKanbanStatusFilter(event.target.value as TaskStatus | "all")}
+                  value={kanbanStatusFilter}
+                >
+                  <option value="all">All statuses</option>
+                  {Object.entries(STATUS_META).map(([value, meta]) => (
+                    <option key={value} value={value}>
+                      {meta.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className={filterClassName}
+                  onChange={(event) => setKanbanPriorityFilter(event.target.value as TaskPriority | "all")}
+                  value={kanbanPriorityFilter}
+                >
+                  <option value="all">All priorities</option>
+                  {Object.entries(PRIORITY_META).map(([value, meta]) => (
+                    <option key={value} value={value}>
+                      {meta.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_9rem]">
+                <select
+                  className={filterClassName}
+                  onChange={(event) =>
+                    setKanbanSortConfig((current) => ({
+                      ...current,
+                      field: event.target.value as KanbanSortField,
+                    }))
+                  }
+                  value={kanbanSortConfig.field}
+                >
+                  <option value="end_date">Sort by due date</option>
+                  <option value="title">Sort by title</option>
+                  <option value="priority">Sort by priority</option>
+                  <option value="progress">Sort by progress</option>
+                  <option value="assignees">Sort by owners</option>
+                </select>
+                <select
+                  className={filterClassName}
+                  onChange={(event) =>
+                    setKanbanSortConfig((current) => ({
+                      ...current,
+                      direction: event.target.value as KanbanSortDirection,
+                    }))
+                  }
+                  value={kanbanSortConfig.direction}
+                >
+                  <option value="asc">Ascending</option>
+                  <option value="desc">Descending</option>
+                </select>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  className="rounded-xl border border-white/10 px-3 py-2 text-sm font-medium text-slate-300 transition hover:border-white/30 hover:text-white"
+                  onClick={resetKanbanControls}
+                  type="button"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+          }
+          kanbanControlsOpen={showKanbanControls}
+          onChange={setActiveView}
+          onToggleKanbanControls={() => setShowKanbanControls((current) => !current)}
+          stats={dashboard.stats}
+        />
 
         {activeView === "kanban" ? (
           <div className="grid gap-3 xl:grid-cols-4">
@@ -303,7 +477,9 @@ export function DashboardScreen() {
         ) : null}
 
         {activeView === "gantt" ? <GanttView tasks={dashboard.tasks} /> : null}
-        {activeView === "list" ? <ListView tasks={dashboard.tasks} /> : null}
+        {activeView === "list" ? (
+          <ListView canEdit={canEdit} onEdit={openEdit} tasks={dashboard.tasks} />
+        ) : null}
         {activeView === "team" ? (
           <TeamView
             busy={saving}
