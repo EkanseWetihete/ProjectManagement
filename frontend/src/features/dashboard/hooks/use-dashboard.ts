@@ -86,6 +86,25 @@ export function useDashboard() {
     }
   }
 
+  useEffect(() => {
+    const eventSource = new EventSource("/api/events");
+
+    function handleDashboardChanged(event: MessageEvent<string>) {
+      const payload = JSON.parse(event.data) as { project_id?: number | null };
+      void refresh(payload.project_id ?? dashboard?.project.id);
+    }
+
+    eventSource.addEventListener("dashboard_changed", handleDashboardChanged as EventListener);
+
+    return () => {
+      eventSource.removeEventListener(
+        "dashboard_changed",
+        handleDashboardChanged as EventListener,
+      );
+      eventSource.close();
+    };
+  }, [dashboard?.project.id]);
+
   async function selectProject(projectId: number) {
     setSaving(true);
     setError(null);

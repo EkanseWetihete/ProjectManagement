@@ -51,6 +51,10 @@ class DashboardService:
         task = dashboard_repository.create_task(self._task_payload(payload))
         return self._serialize_task(task)
 
+    def get_task(self, task_id: int) -> dict | None:
+        task = dashboard_repository.get_task(task_id)
+        return self._serialize_task(task) if task else None
+
     def update_task(self, task_id: int, payload: TaskWrite) -> dict | None:
         task = dashboard_repository.update_task(task_id, self._task_payload(payload))
         return self._serialize_task(task) if task else None
