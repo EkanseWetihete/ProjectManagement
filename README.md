@@ -46,8 +46,8 @@ Git Bash / Bash:
 
 `start.sh` starts both production servers in the background. The backend runs on `0.0.0.0:8000` by default and the frontend runs on `0.0.0.0:3000` by default. You can override them with `PM_BACKEND_HOST`, `PM_BACKEND_PORT`, `PM_FRONTEND_HOST`, and `PM_FRONTEND_PORT`.
 
+`start.sh` creates `backend/.venv` automatically when it is missing, installs `backend/requirements.txt`, runs `npm install`, and rebuilds the frontend before starting the services.
+
 `start.sh` writes logs to `backend/runtime/backend.log` and `backend/runtime/frontend.log`, and stores PID files in the same directory.
 
 `stop.sh` stops both background processes started by `start.sh`.
-
-Before running `start.sh`, build the frontend once with `cd frontend && npm run build`.
