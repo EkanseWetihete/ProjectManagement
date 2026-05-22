@@ -6,7 +6,6 @@ import { AdminPanel } from "@/features/dashboard/components/admin-panel";
 import { BoardColumn } from "@/features/dashboard/components/board-column";
 import { GanttView } from "@/features/dashboard/components/gantt-view";
 import { ListView } from "@/features/dashboard/components/list-view";
-import { StatsStrip } from "@/features/dashboard/components/stats-strip";
 import { TaskModal } from "./task-modal";
 import { TeamView } from "@/features/dashboard/components/team-view";
 import { TopBar } from "@/features/dashboard/components/top-bar";
@@ -37,12 +36,12 @@ export function DashboardScreen() {
   const [editingTask, setEditingTask] = useState<TaskSummary | null>(null);
   const [creationStatus, setCreationStatus] = useState<TaskStatus>("todo");
   const [isCreating, setIsCreating] = useState(false);
-  const [isEditingProject, setIsEditingProject] = useState(false);
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [dragTaskId, setDragTaskId] = useState<number | null>(null);
   const [dropTargetStatus, setDropTargetStatus] = useState<TaskStatus | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [showProjectOptions, setShowProjectOptions] = useState(false);
 
   const deferredTasks = useDeferredValue(dashboard?.tasks ?? []);
   const groupedTasks = useMemo(() => groupTasksByStatus(deferredTasks), [deferredTasks]);
@@ -55,7 +54,7 @@ export function DashboardScreen() {
 
     setProjectName(activeProject.name);
     setProjectDescription(activeProject.description);
-    setIsEditingProject(false);
+    setShowProjectOptions(false);
   }, [dashboard?.project.description, dashboard?.project.id, dashboard?.project.name]);
 
   if (!dashboard && loading) {
@@ -117,7 +116,6 @@ export function DashboardScreen() {
 
     setProjectName(activeProject.name);
     setProjectDescription(activeProject.description);
-    setIsEditingProject(false);
   }
 
   async function handleProjectSave() {
@@ -132,7 +130,7 @@ export function DashboardScreen() {
     });
 
     if (succeeded) {
-      setIsEditingProject(false);
+      setShowProjectOptions(false);
     }
   }
 
@@ -187,17 +185,83 @@ export function DashboardScreen() {
       <div className="mx-auto max-w-[1520px] space-y-3">
         <div className="relative">
           <TopBar
-            activeProjectId={dashboard.project.id}
             busy={loading || saving}
             canEdit={canEdit}
-            onOpenNewTask={() => openCreate("todo")}
-            onProjectChange={(projectId) => void actions.selectProject(projectId)}
-            onRefresh={() => void actions.refresh()}
+            onToggleProjectOptions={() => setShowProjectOptions((current) => !current)}
             onToggleAdminPanel={() => setShowAdminPanel((current) => !current)}
-            projectCodeName={dashboard.project.code_name}
-            projects={dashboard.projects}
+            project={dashboard.project}
+            projectOptionsOpen={showProjectOptions}
             username={session.user?.username ?? null}
           />
+          {showProjectOptions ? (
+            <section className="absolute inset-x-0 top-full z-20 mt-3 rounded-[22px] border border-white/8 bg-[color:var(--panel-strong)] p-4 shadow-[var(--shadow)] backdrop-blur-xl">
+              <div className="grid gap-4 xl:grid-cols-[minmax(16rem,20rem)_1fr]">
+                <div className="space-y-2.5">
+                  <p className="text-xs uppercase tracking-[0.34em] text-slate-400">Project Switcher</p>
+                  <select
+                    className="w-full rounded-xl border border-white/10 bg-white/6 px-3 py-2.5 text-sm text-white focus:border-[color:var(--accent)] focus:outline-none"
+                    onChange={(event) => void actions.selectProject(Number(event.target.value))}
+                    value={dashboard.project.id}
+                  >
+                    {dashboard.projects.map((project) => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-sm text-slate-400">Code: {dashboard.project.code_name}</p>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.34em] text-slate-400">Project Details</p>
+                    {canEdit ? (
+                      <div className="mt-3 space-y-2.5">
+                        <input
+                          className="w-full rounded-xl border border-white/10 bg-white/6 px-3 py-2.5 text-lg font-semibold text-white placeholder:text-slate-500 focus:border-[color:var(--accent)] focus:outline-none"
+                          maxLength={120}
+                          onChange={(event) => setProjectName(event.target.value)}
+                          placeholder="Project name"
+                          type="text"
+                          value={projectName}
+                        />
+                        <textarea
+                          className="min-h-24 w-full rounded-xl border border-white/10 bg-white/6 px-3 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:border-[color:var(--accent)] focus:outline-none"
+                          maxLength={600}
+                          onChange={(event) => setProjectDescription(event.target.value)}
+                          placeholder="Project description"
+                          value={projectDescription}
+                        />
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-slate-300">{dashboard.project.description}</p>
+                    )}
+                  </div>
+
+                  {canEdit ? (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        className="rounded-xl bg-[color:var(--accent)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[color:var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={saving || !trimmedProjectName || !projectChanged}
+                        onClick={() => void handleProjectSave()}
+                        type="button"
+                      >
+                        {saving ? "Saving..." : "Save project"}
+                      </button>
+                      <button
+                        className="rounded-xl border border-white/10 px-3 py-2 text-sm font-medium text-slate-300 transition hover:border-white/30 hover:text-white"
+                        disabled={saving}
+                        onClick={cancelProjectEdit}
+                        type="button"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </section>
+          ) : null}
           {showAdminPanel ? (
             <AdminPanel
               busy={saving}
@@ -209,79 +273,13 @@ export function DashboardScreen() {
           ) : null}
         </div>
 
-        <section className="rounded-[22px] border border-white/8 bg-[color:var(--panel)] p-4 shadow-[var(--shadow)]">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs uppercase tracking-[0.34em] text-slate-400">Active Project</p>
-                  {isEditingProject ? (
-                    <div className="mt-3 max-w-3xl space-y-2.5">
-                      <input
-                        className="w-full rounded-xl border border-white/10 bg-white/6 px-3 py-2.5 text-xl font-semibold text-white placeholder:text-slate-500 focus:border-[color:var(--accent)] focus:outline-none"
-                        maxLength={120}
-                        onChange={(event) => setProjectName(event.target.value)}
-                        placeholder="Project name"
-                        type="text"
-                        value={projectName}
-                      />
-                      <textarea
-                        className="min-h-24 w-full rounded-xl border border-white/10 bg-white/6 px-3 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:border-[color:var(--accent)] focus:outline-none"
-                        maxLength={600}
-                        onChange={(event) => setProjectDescription(event.target.value)}
-                        placeholder="Project description"
-                        value={projectDescription}
-                      />
-                    </div>
-                  ) : (
-                    <>
-                      <h1 className="mt-1.5 text-2xl font-semibold text-white">{dashboard.project.name}</h1>
-                      <p className="mt-2 max-w-3xl text-sm text-slate-300">{dashboard.project.description}</p>
-                    </>
-                  )}
-                </div>
-                {canEdit && !isEditingProject ? (
-                  <button
-                    className="rounded-full border border-white/10 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:border-[color:var(--accent)] hover:text-white"
-                    onClick={() => setIsEditingProject(true)}
-                    type="button"
-                  >
-                    Edit details
-                  </button>
-                ) : null}
-              </div>
-              {canEdit && isEditingProject ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    className="rounded-xl bg-[color:var(--accent)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[color:var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={saving || !trimmedProjectName || !projectChanged}
-                    onClick={() => void handleProjectSave()}
-                    type="button"
-                  >
-                    {saving ? "Saving..." : "Save project"}
-                  </button>
-                  <button
-                    className="rounded-xl border border-white/10 px-3 py-2 text-sm font-medium text-slate-300 transition hover:border-white/30 hover:text-white"
-                    disabled={saving}
-                    onClick={cancelProjectEdit}
-                    type="button"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : null}
-            </div>
-            <StatsStrip stats={dashboard.stats} />
-          </div>
-        </section>
-
         {error ? (
           <div className="rounded-xl border border-[color:var(--danger)]/30 bg-[color:var(--danger)]/10 px-3 py-2.5 text-sm text-rose-100">
             {error}
           </div>
         ) : null}
 
-        <ViewTabs activeView={activeView} onChange={setActiveView} />
+        <ViewTabs activeView={activeView} onChange={setActiveView} stats={dashboard.stats} />
 
         {activeView === "kanban" ? (
           <div className="grid gap-3 xl:grid-cols-4">
