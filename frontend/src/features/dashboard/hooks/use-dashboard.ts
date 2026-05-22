@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useEffectEvent, useState } from "react";
 
 import {
   activateProject,
@@ -26,6 +26,7 @@ import type {
 } from "@/features/dashboard/types";
 
 const TOKEN_STORAGE_KEY = "studio-board-admin-token";
+const REALTIME_POLL_INTERVAL_MS = 3000;
 
 const EMPTY_SESSION: SessionResponse = {
   authenticated: false,
@@ -86,23 +87,43 @@ export function useDashboard() {
     }
   }
 
+  const refreshDashboard = useEffectEvent((projectId?: number) => {
+    void refresh(projectId);
+  });
+
   useEffect(() => {
     const eventSource = new EventSource("/api/events");
 
     function handleDashboardChanged(event: MessageEvent<string>) {
       const payload = JSON.parse(event.data) as { project_id?: number | null };
-      void refresh(payload.project_id ?? dashboard?.project.id);
+      refreshDashboard(payload.project_id ?? dashboard?.project.id);
+    }
+
+    function handleStreamError() {
+      refreshDashboard(dashboard?.project.id);
     }
 
     eventSource.addEventListener("dashboard_changed", handleDashboardChanged as EventListener);
+    eventSource.addEventListener("error", handleStreamError as EventListener);
 
     return () => {
       eventSource.removeEventListener(
         "dashboard_changed",
         handleDashboardChanged as EventListener,
       );
+      eventSource.removeEventListener("error", handleStreamError as EventListener);
       eventSource.close();
     };
+  }, [dashboard?.project.id]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        refreshDashboard(dashboard?.project.id);
+      }
+    }, REALTIME_POLL_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
   }, [dashboard?.project.id]);
 
   async function selectProject(projectId: number) {

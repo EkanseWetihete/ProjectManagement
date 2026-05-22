@@ -2,6 +2,9 @@ import { loadEnvConfig } from "@next/env";
 import path from "node:path";
 import type { NextRequest } from "next/server";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 loadEnvConfig(path.resolve(process.cwd(), ".."));
 
 const IS_DEVELOPMENT_MODE = process.env.PM_DEVELOPMENT_MODE === "true";
