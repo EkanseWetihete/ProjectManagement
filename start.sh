@@ -19,6 +19,7 @@ BACKEND_HOST="${PM_BACKEND_HOST:-0.0.0.0}"
 BACKEND_PORT="${PM_BACKEND_PORT:-8000}"
 FRONTEND_HOST="${PM_FRONTEND_HOST:-0.0.0.0}"
 FRONTEND_PORT="${PM_FRONTEND_PORT:-3000}"
+BACKEND_VENV_DIR="$BACKEND_DIR/.venv"
 
 for candidate in \
   "$BACKEND_DIR/.venv/bin/python" \
@@ -33,6 +34,64 @@ do
 done
 
 PYTHON_EXE="${PYTHON_EXE:-$BACKEND_DIR/.venv/bin/python}"
+
+find_system_python() {
+  if command -v python3 >/dev/null 2>&1; then
+    command -v python3
+    return 0
+  fi
+
+  if command -v python >/dev/null 2>&1; then
+    command -v python
+    return 0
+  fi
+
+  return 1
+}
+
+ensure_backend_python() {
+  if [[ -f "$PYTHON_EXE" ]]; then
+    return 0
+  fi
+
+  local system_python
+  if ! system_python="$(find_system_python)"; then
+    echo "Missing Python runtime. Install python3 on the server before running start.sh." >&2
+    exit 1
+  fi
+
+  echo "Creating backend virtual environment..."
+  "$system_python" -m venv "$BACKEND_VENV_DIR"
+
+  if [[ -f "$BACKEND_VENV_DIR/bin/python" ]]; then
+    PYTHON_EXE="$BACKEND_VENV_DIR/bin/python"
+  elif [[ -f "$BACKEND_VENV_DIR/Scripts/python.exe" ]]; then
+    PYTHON_EXE="$BACKEND_VENV_DIR/Scripts/python.exe"
+  else
+    echo "Failed to create backend virtual environment at $BACKEND_VENV_DIR" >&2
+    exit 1
+  fi
+}
+
+ensure_backend_dependencies() {
+  echo "Installing backend requirements..."
+  "$PYTHON_EXE" -m pip install --upgrade pip
+  "$PYTHON_EXE" -m pip install -r "$BACKEND_DIR/requirements.txt"
+}
+
+ensure_frontend_dependencies() {
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "Missing npm. Install Node.js and npm on the server before running start.sh." >&2
+    exit 1
+  fi
+
+  echo "Installing frontend packages..."
+  cd "$FRONTEND_DIR"
+  npm install
+
+  echo "Building frontend..."
+  npm run build
+}
 
 is_running() {
   local pid="$1"
@@ -58,16 +117,9 @@ require_not_running() {
   rm -f "$pid_file"
 }
 
-if [[ ! -f "$PYTHON_EXE" ]]; then
-  echo "Missing virtual environment Python: $PYTHON_EXE" >&2
-  exit 1
-fi
-
-if [[ ! -f "$FRONTEND_DIR/.next/BUILD_ID" ]]; then
-  echo "Missing frontend production build: $FRONTEND_DIR/.next/BUILD_ID" >&2
-  echo "Run 'cd frontend && npm run build' before starting production." >&2
-  exit 1
-fi
+ensure_backend_python
+ensure_backend_dependencies
+ensure_frontend_dependencies
 
 mkdir -p "$RUNTIME_DIR"
 
