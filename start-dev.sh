@@ -3,7 +3,7 @@ set -euo pipefail
 
 if [[ "${1:-}" == "--help" ]]; then
   echo "Usage: ./start-dev.sh"
-  echo "Starts the backend in the background and the frontend desktop app in the current shell."
+  echo "Starts the backend in the background and the frontend web app in the current shell."
   exit 0
 fi
 
@@ -43,4 +43,4 @@ cd "$BACKEND_DIR"
 backend_pid=$!
 
 cd "$FRONTEND_DIR"
-npm run dev:desktop
+npm run dev

@@ -15,7 +15,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: "Project Management",
-  description: "Compact desktop project manager for small teams.",
+  description: "Project manager for small teams.",
 };
 
 export default function RootLayout({

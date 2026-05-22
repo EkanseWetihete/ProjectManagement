@@ -3,7 +3,7 @@ setlocal
 
 if /I "%~1"=="--help" (
   echo Usage: %~nx0
-  echo Starts the backend in a new window and the frontend desktop app in this window.
+  echo Starts the backend in a new window and the frontend web app in this window.
   exit /b 0
 )
 
@@ -17,7 +17,7 @@ if not exist "%PYTHON_EXE%" (
   exit /b 1
 )
 
-start "Project Management Backend" cmd /k "cd /d ""%BACKEND_DIR%"" && ""%PYTHON_EXE%"" -m uvicorn app.main:app --reload"
+start "Project Management Backend" /D "%BACKEND_DIR%" cmd /k ""%PYTHON_EXE%" -m uvicorn app.main:app --reload"
 
 cd /d "%FRONTEND_DIR%"
-call npm run dev:desktop
+call npm run dev

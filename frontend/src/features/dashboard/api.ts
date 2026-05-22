@@ -10,16 +10,13 @@ import type {
   TaskWrite,
 } from "@/features/dashboard/types";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://127.0.0.1:8000";
-
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(path, {
     ...init,
     headers,
   });

@@ -5,9 +5,10 @@ import os
 from dotenv import load_dotenv
 
 
-BASE_DIR = Path(__file__).resolve().parents[2]
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+PROJECT_DIR = Path(__file__).resolve().parents[3]
 
-load_dotenv(BASE_DIR / ".env")
+load_dotenv(PROJECT_DIR / ".env")
 
 
 @dataclass(frozen=True)
@@ -21,8 +22,7 @@ class Settings:
         "PM_CORS_ORIGINS",
         "*",
     )
-    database_path: Path = BASE_DIR / "data" / "project_manager.db"
-    updates_path: Path = BASE_DIR / "updates"
+    database_path: Path = BACKEND_DIR / "data" / "project_manager.db"
 
     @property
     def cors_origins(self) -> list[str]:

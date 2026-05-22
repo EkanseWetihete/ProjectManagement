@@ -1,12 +1,11 @@
+import { loadEnvConfig } from "@next/env";
+import path from "node:path";
 import type { NextConfig } from "next";
+
+loadEnvConfig(path.resolve(process.cwd(), ".."));
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["localhost", "127.0.0.1"],
-  assetPrefix: process.env.NODE_ENV === "production" ? "./" : undefined,
-  output: "export",
-  images: {
-    unoptimized: true,
-  },
 };
 
 export default nextConfig;

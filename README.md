@@ -1,10 +1,10 @@
 # Project Management
 
-Compact project management desktop app for a small team.
+Compact project management web app for a small team.
 
 ## Stack
 
-- Frontend: Next.js + Electron + TypeScript
+- Frontend: Next.js + TypeScript
 - Backend: FastAPI + SQLite
 
 ## Run Backend
@@ -22,10 +22,10 @@ uvicorn app.main:app --reload
 ```bash
 cd frontend
 npm install
-npm run dev:desktop
+npm run dev
 ```
 
-The frontend expects the backend at `http://127.0.0.1:8000` unless `NEXT_PUBLIC_API_URL` is overridden.
+Shared configuration lives in the repo root `.env`. Set `PM_DEVELOPMENT_MODE=true` to proxy to `PM_BACKEND_URL_DEV`, or `false` to proxy to `PM_BACKEND_URL_PROD`.
 
 ## Quick Commands
 
@@ -37,7 +37,6 @@ Windows CMD / PowerShell:
 start-backend.bat
 update-and-start-backend.bat
 start-dev.bat
-build-installer.bat
 ```
 
 Git Bash / Bash:
@@ -49,7 +48,6 @@ Git Bash / Bash:
 ./update-and-start-backend.sh
 ./update-and-start-backend-background.sh
 ./start-dev.sh
-./build-installer.sh
 ```
 
 `start-backend` runs only the FastAPI server.
@@ -61,5 +59,3 @@ Git Bash / Bash:
 `update-and-start-backend` fetches and fast-forward pulls the current branch from `origin`, then starts the backend. It only works when the project root itself is a git checkout and the working tree is clean.
 
 `update-and-start-backend-background` does the same git check and pull, then starts the background backend process.
-
-`build-installer` generates the Windows installer in `frontend/dist/` and copies `latest.yml`, the installer `.exe`, and the `.blockmap` into `backend/updates/win/`.

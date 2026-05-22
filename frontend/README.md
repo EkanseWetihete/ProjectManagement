@@ -1,42 +1,36 @@
 # Frontend
 
-Next.js renderer plus Electron shell for the desktop Project Management app.
+Next.js web frontend for Project Management.
 
 ## Local Development
 
-Install dependencies and start the desktop app against the local backend:
+Install dependencies and start the web app against the local backend:
 
 ```bash
 npm install
-npm run dev:desktop
+npm run dev
 ```
 
-The renderer runs on `http://localhost:3000`. Electron injects `X-Project-Client-Key` into backend `/api/*` requests from the main process.
+The app runs on `http://localhost:3000` by default.
 
 ## Environment
 
-Use `.env` for local development. For packaged desktop builds, create `.env.production` with the values you want bundled into the app:
+Use the repo root `.env` for local development and deployment:
 
 ```bash
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
-PM_APP_CLIENT_KEY=replace-with-same-backend-key
-PM_UPDATE_URL=http://127.0.0.1:8000/updates/win
+PM_DEVELOPMENT_MODE=true
+PM_BACKEND_URL_DEV=http://127.0.0.1:8000
+PM_BACKEND_URL_PROD=http://198.46.175.134:8000
+PM_APP_CLIENT_KEY=replace-with-long-random-string
 ```
 
-`PM_UPDATE_URL` is optional if the update feed is hosted on the same backend as `NEXT_PUBLIC_API_URL`; the Electron shell falls back to `${NEXT_PUBLIC_API_URL}/updates/win`.
+The frontend proxies browser `/api/*` requests through the Next.js server and injects `X-Project-Client-Key` there, so the key does not ship to the browser.
 
-## Windows Packaging
+## Production
 
-Build the exported renderer and generate an NSIS installer:
+Build and run the Next.js server:
 
 ```bash
-npm run dist:win
+npm run build
+npm run start
 ```
-
-Artifacts are written to `frontend/dist/`. For the updater, copy these files into `backend/updates/win/` on the server:
-
-- `latest.yml`
-- `Project Management-Setup-<version>.exe`
-- `Project Management-Setup-<version>.exe.blockmap`
-
-Packaged apps check the update feed on launch and prompt the user to restart once a new version has been downloaded.
