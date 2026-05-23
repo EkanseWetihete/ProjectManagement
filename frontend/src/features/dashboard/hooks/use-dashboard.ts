@@ -26,7 +26,6 @@ import type {
 } from "@/features/dashboard/types";
 
 const TOKEN_STORAGE_KEY = "studio-board-admin-token";
-const REALTIME_POLL_INTERVAL_MS = 3000;
 
 const EMPTY_SESSION: SessionResponse = {
   authenticated: false,
@@ -91,40 +90,54 @@ export function useDashboard() {
     void refresh(projectId);
   });
 
+  const refreshActiveProject = useEffectEvent(() => {
+    refreshDashboard(dashboard?.project.id);
+  });
+
+  const handleRealtimeChange = useEffectEvent((event: MessageEvent<string>) => {
+    const payload = JSON.parse(event.data) as { project_id?: number | null };
+    refreshDashboard(payload.project_id ?? dashboard?.project.id);
+  });
+
   useEffect(() => {
     const eventSource = new EventSource("/api/events");
 
     function handleDashboardChanged(event: MessageEvent<string>) {
-      const payload = JSON.parse(event.data) as { project_id?: number | null };
-      refreshDashboard(payload.project_id ?? dashboard?.project.id);
+      handleRealtimeChange(event);
     }
 
-    function handleStreamError() {
-      refreshDashboard(dashboard?.project.id);
+    function handleStreamOpen() {
+      refreshActiveProject();
+    }
+
+    function handlePageResume() {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+
+      refreshActiveProject();
     }
 
     eventSource.addEventListener("dashboard_changed", handleDashboardChanged as EventListener);
-    eventSource.addEventListener("error", handleStreamError as EventListener);
+    eventSource.addEventListener("open", handleStreamOpen as EventListener);
+    document.addEventListener("visibilitychange", handlePageResume);
+    window.addEventListener("focus", handlePageResume);
+    window.addEventListener("pageshow", handlePageResume);
+    window.addEventListener("online", handlePageResume);
 
     return () => {
       eventSource.removeEventListener(
         "dashboard_changed",
         handleDashboardChanged as EventListener,
       );
-      eventSource.removeEventListener("error", handleStreamError as EventListener);
+      eventSource.removeEventListener("open", handleStreamOpen as EventListener);
+      document.removeEventListener("visibilitychange", handlePageResume);
+      window.removeEventListener("focus", handlePageResume);
+      window.removeEventListener("pageshow", handlePageResume);
+      window.removeEventListener("online", handlePageResume);
       eventSource.close();
     };
-  }, [dashboard?.project.id]);
-
-  useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      if (document.visibilityState === "visible") {
-        refreshDashboard(dashboard?.project.id);
-      }
-    }, REALTIME_POLL_INTERVAL_MS);
-
-    return () => window.clearInterval(intervalId);
-  }, [dashboard?.project.id]);
+  }, [handleRealtimeChange, refreshActiveProject]);
 
   async function selectProject(projectId: number) {
     setSaving(true);
