@@ -18,6 +18,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   const response = await fetch(path, {
     ...init,
+    cache: init.cache ?? "no-store",
     headers,
   });
 
@@ -56,7 +57,12 @@ function formatErrorDetail(
 }
 
 export function fetchDashboard(projectId?: number) {
-  const query = projectId ? `?project_id=${projectId}` : "";
+  const params = new URLSearchParams();
+  if (projectId) {
+    params.set("project_id", String(projectId));
+  }
+  params.set("_", String(Date.now()));
+  const query = `?${params.toString()}`;
   return request<DashboardResponse>(`/api/dashboard${query}`, { cache: "no-store" });
 }
 

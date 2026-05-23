@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useEffectEvent, useState } from "react";
+import { startTransition, useEffect, useEffectEvent, useRef, useState } from "react";
 
 import {
   activateProject,
@@ -26,6 +26,7 @@ import type {
 } from "@/features/dashboard/types";
 
 const TOKEN_STORAGE_KEY = "studio-board-admin-token";
+const DASHBOARD_REFRESH_INTERVAL_MS = 3000;
 
 const EMPTY_SESSION: SessionResponse = {
   authenticated: false,
@@ -43,6 +44,8 @@ export function useDashboard() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const refreshInFlightRef = useRef(false);
+  const queuedRefreshRef = useRef<{ projectId?: number } | null>(null);
 
   async function bootstrap(storedToken: string | null, projectId?: number) {
     try {
@@ -78,11 +81,28 @@ export function useDashboard() {
   }, []);
 
   async function refresh(projectId?: number) {
+    const nextProjectId = projectId ?? dashboard?.project.id;
+
+    if (refreshInFlightRef.current) {
+      queuedRefreshRef.current = { projectId: nextProjectId };
+      return;
+    }
+
+    refreshInFlightRef.current = true;
+
     try {
-      const nextDashboard = await fetchDashboard(projectId ?? dashboard?.project.id);
+      const nextDashboard = await fetchDashboard(nextProjectId);
       startTransition(() => setDashboard(nextDashboard));
     } catch (nextError) {
       setError(getErrorMessage(nextError));
+    } finally {
+      refreshInFlightRef.current = false;
+
+      const queuedRefresh = queuedRefreshRef.current;
+      queuedRefreshRef.current = null;
+      if (queuedRefresh) {
+        void refresh(queuedRefresh.projectId);
+      }
     }
   }
 
@@ -94,22 +114,7 @@ export function useDashboard() {
     refreshDashboard(dashboard?.project.id);
   });
 
-  const handleRealtimeChange = useEffectEvent((event: MessageEvent<string>) => {
-    const payload = JSON.parse(event.data) as { project_id?: number | null };
-    refreshDashboard(payload.project_id ?? dashboard?.project.id);
-  });
-
   useEffect(() => {
-    const eventSource = new EventSource("/api/events");
-
-    function handleDashboardChanged(event: MessageEvent<string>) {
-      handleRealtimeChange(event);
-    }
-
-    function handleStreamOpen() {
-      refreshActiveProject();
-    }
-
     function handlePageResume() {
       if (document.visibilityState !== "visible") {
         return;
@@ -118,26 +123,23 @@ export function useDashboard() {
       refreshActiveProject();
     }
 
-    eventSource.addEventListener("dashboard_changed", handleDashboardChanged as EventListener);
-    eventSource.addEventListener("open", handleStreamOpen as EventListener);
+    const intervalId = window.setInterval(() => {
+      refreshActiveProject();
+    }, DASHBOARD_REFRESH_INTERVAL_MS);
+
     document.addEventListener("visibilitychange", handlePageResume);
     window.addEventListener("focus", handlePageResume);
     window.addEventListener("pageshow", handlePageResume);
     window.addEventListener("online", handlePageResume);
 
     return () => {
-      eventSource.removeEventListener(
-        "dashboard_changed",
-        handleDashboardChanged as EventListener,
-      );
-      eventSource.removeEventListener("open", handleStreamOpen as EventListener);
+      window.clearInterval(intervalId);
       document.removeEventListener("visibilitychange", handlePageResume);
       window.removeEventListener("focus", handlePageResume);
       window.removeEventListener("pageshow", handlePageResume);
       window.removeEventListener("online", handlePageResume);
-      eventSource.close();
     };
-  }, [handleRealtimeChange, refreshActiveProject]);
+  }, [refreshActiveProject]);
 
   async function selectProject(projectId: number) {
     setSaving(true);
