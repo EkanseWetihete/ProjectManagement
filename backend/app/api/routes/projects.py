@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, status
 from app.api.deps import AdminToken
 from app.schemas.project import (
     DashboardResponse,
+    DashboardRefreshRequest,
     ProjectActivationRequest,
     ProjectListResponse,
     ProjectWrite,
@@ -24,6 +25,17 @@ def list_projects() -> ProjectListResponse:
 @router.get("/dashboard", response_model=DashboardResponse)
 def get_dashboard(project_id: int | None = None) -> DashboardResponse:
     dashboard = dashboard_service.get_dashboard(project_id)
+    if not dashboard:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No project data found.",
+        )
+    return dashboard
+
+
+@router.post("/dashboard/refresh", response_model=DashboardResponse)
+def refresh_dashboard(payload: DashboardRefreshRequest) -> DashboardResponse:
+    dashboard = dashboard_service.get_dashboard(payload.project_id)
     if not dashboard:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

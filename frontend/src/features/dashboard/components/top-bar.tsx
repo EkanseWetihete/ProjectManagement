@@ -3,6 +3,7 @@ import type { ProjectSummary } from "@/features/dashboard/types";
 type TopBarProps = {
   busy: boolean;
   canEdit: boolean;
+  onRefresh: () => void;
   onToggleProjectOptions: () => void;
   onToggleAdminPanel: () => void;
   project: ProjectSummary;
@@ -16,6 +17,7 @@ const buttonClassName =
 export function TopBar({
   busy,
   canEdit,
+  onRefresh,
   onToggleProjectOptions,
   onToggleAdminPanel,
   project,
@@ -40,6 +42,9 @@ export function TopBar({
 
         <div className="flex min-h-full flex-col items-end justify-between gap-3 xl:self-stretch">
           <div className="flex flex-wrap items-center justify-end gap-2">
+            <button className={buttonClassName} disabled={busy} onClick={onRefresh} type="button" >
+              {busy ? "Refreshing..." : "Refresh"}
+            </button>
             <button aria-expanded={projectOptionsOpen} aria-label="Project options" className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 transition hover:border-white/20 hover:bg-white/10 hover:text-white" onClick={onToggleProjectOptions} type="button" >
               <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
                 <path d="M4 7h16M7 12h10M10 17h4" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />

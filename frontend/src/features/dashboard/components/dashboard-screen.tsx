@@ -48,7 +48,7 @@ function DashboardSkeleton() {
 }
 
 export function DashboardScreen() {
-  const { actions, dashboard, error, loading, saving, session } = useDashboard();
+  const { actions, dashboard, error, loading, refreshing, saving, session } = useDashboard();
   const [activeView, setActiveView] = useState<ViewMode>("kanban");
   const [editingTask, setEditingTask] = useState<TaskSummary | null>(null);
   const [creationStatus, setCreationStatus] = useState<TaskStatus>("todo");
@@ -273,8 +273,9 @@ export function DashboardScreen() {
       <div className="mx-auto max-w-[1520px] space-y-3">
         <div className="relative">
           <TopBar
-            busy={loading || saving}
+            busy={loading || refreshing || saving}
             canEdit={canEdit}
+            onRefresh={() => void actions.forceRefresh(dashboard.project.id)}
             onToggleProjectOptions={() => setShowProjectOptions((current) => !current)}
             onToggleAdminPanel={() => setShowAdminPanel((current) => !current)}
             project={dashboard.project}

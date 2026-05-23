@@ -66,6 +66,14 @@ export function fetchDashboard(projectId?: number) {
   return request<DashboardResponse>(`/api/dashboard${query}`, { cache: "no-store" });
 }
 
+export function refreshDashboardNow(projectId?: number) {
+  return request<DashboardResponse>("/api/dashboard/refresh", {
+    method: "POST",
+    body: JSON.stringify({ project_id: projectId ?? null }),
+    cache: "no-store",
+  });
+}
+
 export function loginAdmin(payload: LoginPayload) {
   return request<LoginResponse>("/api/auth/login", {
     method: "POST",

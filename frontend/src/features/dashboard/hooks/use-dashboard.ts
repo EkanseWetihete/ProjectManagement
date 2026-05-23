@@ -12,6 +12,7 @@ import {
   getSession,
   loginAdmin,
   logoutAdmin,
+  refreshDashboardNow,
   updateMember,
   updateProject,
   updateTask,
@@ -42,6 +43,7 @@ export function useDashboard() {
   const [session, setSession] = useState<SessionResponse>(EMPTY_SESSION);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const refreshInFlightRef = useRef(false);
@@ -113,6 +115,22 @@ export function useDashboard() {
   const refreshActiveProject = useEffectEvent(() => {
     refreshDashboard(dashboard?.project.id);
   });
+
+  async function forceRefresh(projectId?: number) {
+    setRefreshing(true);
+    setError(null);
+
+    try {
+      const nextDashboard = await refreshDashboardNow(projectId ?? dashboard?.project.id);
+      startTransition(() => setDashboard(nextDashboard));
+      return true;
+    } catch (nextError) {
+      setError(getErrorMessage(nextError));
+      return false;
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   useEffect(() => {
     function handlePageResume() {
@@ -315,9 +333,11 @@ export function useDashboard() {
     dashboard,
     error,
     loading,
+    refreshing,
     saving,
     session,
     actions: {
+      forceRefresh,
       refresh,
       removeMember,
       removeTask,

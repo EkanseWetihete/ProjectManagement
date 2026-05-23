@@ -97,6 +97,10 @@ class ProjectActivationRequest(BaseModel):
     project_id: int
 
 
+class DashboardRefreshRequest(BaseModel):
+    project_id: int | None = None
+
+
 class ProjectWrite(BaseModel):
     name: str = Field(min_length=1)
     description: str
