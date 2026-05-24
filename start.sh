@@ -16,6 +16,7 @@ BACKEND_PID_FILE="$RUNTIME_DIR/backend.pid"
 FRONTEND_PID_FILE="$RUNTIME_DIR/frontend.pid"
 BACKEND_LOG_FILE="$RUNTIME_DIR/backend.log"
 FRONTEND_LOG_FILE="$RUNTIME_DIR/frontend.log"
+FRONTEND_NEXT_BIN="$FRONTEND_DIR/node_modules/.bin/next"
 BACKEND_HOST="${PM_BACKEND_HOST:-0.0.0.0}"
 BACKEND_PORT="${PM_BACKEND_PORT:-8000}"
 FRONTEND_HOST="${PM_FRONTEND_HOST:-0.0.0.0}"
@@ -163,6 +164,11 @@ ensure_backend_python
 ensure_backend_dependencies
 ensure_frontend_dependencies
 
+if [[ ! -x "$FRONTEND_NEXT_BIN" ]]; then
+  echo "Unable to find the Next.js runtime at $FRONTEND_NEXT_BIN after npm install." >&2
+  exit 1
+fi
+
 mkdir -p "$RUNTIME_DIR"
 
 require_not_running "Backend server" "$BACKEND_PID_FILE"
@@ -176,7 +182,7 @@ backend_pid=$!
 echo "$backend_pid" > "$BACKEND_PID_FILE"
 
 cd "$FRONTEND_DIR"
-nohup npm run start -- --hostname "$FRONTEND_HOST" --port "$FRONTEND_PORT" >> "$FRONTEND_LOG_FILE" 2>&1 &
+nohup "$FRONTEND_NEXT_BIN" start --hostname "$FRONTEND_HOST" --port "$FRONTEND_PORT" >> "$FRONTEND_LOG_FILE" 2>&1 &
 frontend_pid=$!
 echo "$frontend_pid" > "$FRONTEND_PID_FILE"
 
