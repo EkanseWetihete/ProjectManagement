@@ -35,7 +35,7 @@ export function BoardColumn({
 }: BoardColumnProps) {
   return (
     <section
-      className={`flex h-[calc(100vh-15rem)] min-h-[28rem] flex-col rounded-[22px] border bg-[color:var(--panel)] shadow-[var(--shadow)] transition ${
+      className={`flex h-[calc(100vh-15rem)] min-h-[28rem] flex-col rounded-[20px] border bg-[color:var(--panel)] shadow-[var(--shadow)] transition ${
         isDropTarget
           ? "border-[color:var(--accent)] ring-2 ring-[color:var(--accent)]/35"
           : "border-white/8"
@@ -56,7 +56,7 @@ export function BoardColumn({
         onDropTask(column.id);
       }}
     >
-      <header className="flex items-center justify-between border-b border-white/8 px-4 py-3">
+      <header className="flex items-center justify-between border-b border-white/8 px-3 py-2.5">
         <div>
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold text-white">{column.label}</h3>
@@ -64,11 +64,11 @@ export function BoardColumn({
               {column.task_count}
             </span>
           </div>
-          <p className="mt-1 text-xs text-slate-400">{STATUS_META[column.id].hint}</p>
+          <p className="mt-0.5 text-xs text-slate-400">{STATUS_META[column.id].hint}</p>
         </div>
         {canEdit ? (
           <button
-            className="rounded-full border border-white/10 px-3 py-1 text-lg leading-none text-slate-300 transition hover:border-[color:var(--accent)] hover:text-white"
+            className="rounded-full border border-white/10 px-2.5 py-0.5 text-lg leading-none text-slate-300 transition hover:border-[color:var(--accent)] hover:text-white"
             onClick={() => onAdd(column.id)}
             type="button"
           >
@@ -76,7 +76,7 @@ export function BoardColumn({
           </button>
         ) : null}
       </header>
-      <div className="flex-1 space-y-2.5 overflow-y-auto px-3 py-3">
+      <div className="flex-1 space-y-2 overflow-y-auto px-2.5 py-2.5">
         {tasks.length ? (
           tasks.map((task) => (
             <TaskCard
@@ -90,7 +90,7 @@ export function BoardColumn({
             />
           ))
         ) : (
-          <div className="rounded-[20px] border border-dashed border-white/10 bg-white/4 px-4 py-5 text-sm text-slate-400">
+          <div className="rounded-[18px] border border-dashed border-white/10 bg-white/4 px-3 py-4 text-sm text-slate-400">
             No tasks in this column yet.
           </div>
         )}

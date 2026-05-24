@@ -46,10 +46,10 @@ type MemberSelectDropdownProps = {
 };
 
 const inputClassName =
-  "w-full rounded-xl border border-white/10 bg-white/6 px-3 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-[color:var(--accent)] focus:outline-none";
+  "w-full rounded-xl border border-white/10 bg-white/6 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-[color:var(--accent)] focus:outline-none";
 
 const compactInputClassName =
-  "h-9 w-full rounded-lg border border-white/10 bg-white/6 px-2.5 text-sm text-white placeholder:text-slate-500 focus:border-[color:var(--accent)] focus:outline-none";
+  "h-8 w-full rounded-lg border border-white/10 bg-white/6 px-2.5 text-sm text-white placeholder:text-slate-500 focus:border-[color:var(--accent)] focus:outline-none";
 
 function createObjectiveKey() {
   return `objective-${Math.random().toString(16).slice(2)}-${Date.now()}`;
@@ -238,10 +238,15 @@ export function TaskModal({
       title: draft.title.trim(),
       description: draft.description.trim(),
       objectives: draft.objectives
-        .map(({ local_id, ...objective }) => ({
-          ...objective,
-          title: objective.title.trim(),
-        }))
+        .map((objective) => {
+          const { local_id, ...nextObjective } = objective;
+          void local_id;
+
+          return {
+            ...nextObjective,
+            title: nextObjective.title.trim(),
+          };
+        })
         .filter((objective) => objective.title.length > 0),
     };
     const succeeded = await onSave(payload, task?.id);
@@ -322,27 +327,27 @@ export function TaskModal({
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/78 p-4 backdrop-blur-sm">
-      <div className="max-h-[92vh] w-full max-w-[52rem] overflow-y-auto rounded-[24px] border border-white/10 bg-[color:var(--panel-strong)] shadow-[var(--shadow)]">
-        <div className="flex items-center justify-between border-b border-white/8 px-5 py-4">
+      <div className="max-h-[92vh] w-full max-w-[50rem] overflow-y-auto rounded-[22px] border border-white/10 bg-[color:var(--panel-strong)] shadow-[var(--shadow)]">
+        <div className="flex items-center justify-between border-b border-white/8 px-4 py-3">
           <div>
             <p className="text-xs uppercase tracking-[0.32em] text-slate-400">
               {mode === "edit" ? "Edit Task" : "Create Task"}
             </p>
-            <h2 className="mt-1.5 text-xl font-semibold text-white">
+            <h2 className="mt-1 text-lg font-semibold text-white">
               {mode === "edit" ? task?.title : STATUS_META[statusHint].label}
             </h2>
           </div>
           <button
-            className="rounded-full border border-white/10 px-3 py-1.5 text-sm text-slate-300 transition hover:border-white/25 hover:text-white"
+            className="rounded-full border border-white/10 px-3 py-1 text-sm text-slate-300 transition hover:border-white/25 hover:text-white"
             onClick={onClose}
             type="button"
           >
             Close
           </button>
         </div>
-        <form className="space-y-4 px-5 py-5" onSubmit={handleSubmit}>
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_220px]">
-            <label className="block space-y-2">
+        <form className="space-y-3 px-4 py-4" onSubmit={handleSubmit}>
+          <div className="grid gap-2.5 md:grid-cols-[minmax(0,1.4fr)_220px]">
+            <label className="block space-y-1.5">
               <span className="text-sm font-medium text-slate-200">Task Name</span>
               <input
                 className={inputClassName}
@@ -351,7 +356,7 @@ export function TaskModal({
                 value={draft.title}
               />
             </label>
-            <label className="block space-y-2">
+            <label className="block space-y-1.5">
               <span className="text-sm font-medium text-slate-200">Priority</span>
               <select
                 className={inputClassName}
@@ -367,18 +372,18 @@ export function TaskModal({
             </label>
           </div>
 
-          <label className="block space-y-2">
+          <label className="block space-y-1.5">
             <span className="text-sm font-medium text-slate-200">Description</span>
             <textarea
-              className={`${inputClassName} min-h-24 resize-y`}
+              className={`${inputClassName} min-h-20 resize-y leading-5`}
               onChange={(event) => setField("description", event.target.value)}
               required
               value={draft.description}
             />
           </label>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[160px_220px_minmax(0,1fr)_160px]">
-            <label className="block space-y-2">
+          <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-[160px_220px_minmax(0,1fr)_160px]">
+            <label className="block space-y-1.5">
               <span className="text-sm font-medium text-slate-200">Status</span>
               <select
                 className={inputClassName}
@@ -393,7 +398,7 @@ export function TaskModal({
               </select>
             </label>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <span className="text-sm font-medium text-slate-200">Assigned Team</span>
               <MemberSelectDropdown
                 dropdownId="task-assignees"
@@ -406,7 +411,7 @@ export function TaskModal({
               />
             </div>
 
-            <label className="block space-y-2">
+            <label className="block space-y-1.5">
               <span className="text-sm font-medium text-slate-200">Parent Task</span>
               <select
                 className={inputClassName}
@@ -427,7 +432,7 @@ export function TaskModal({
               </select>
             </label>
 
-            <label className="block space-y-2">
+            <label className="block space-y-1.5">
               <span className="text-sm font-medium text-slate-200">Sort Order</span>
               <input
                 className={inputClassName}
@@ -439,16 +444,16 @@ export function TaskModal({
             </label>
           </div>
 
-          <section className="space-y-3 rounded-[20px] border border-white/8 bg-white/4 p-3.5">
+          <section className="space-y-2.5 rounded-[18px] border border-white/8 bg-white/4 p-3">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-medium text-slate-200">Objectives</h3>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-0.5 text-xs leading-4 text-slate-400">
                   Keep them short, assign people from the dropdown, and toggle progress inline.
                 </p>
               </div>
               <button
-                className="rounded-xl border border-white/10 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-white/25 hover:text-white"
+                className="rounded-xl border border-white/10 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:border-white/25 hover:text-white"
                 onClick={addObjective}
                 type="button"
               >
@@ -458,7 +463,7 @@ export function TaskModal({
 
             <div className="overflow-x-auto">
               {draft.objectives.length ? (
-                <table className="min-w-[38rem] w-full border-separate border-spacing-y-1.5 text-left">
+                <table className="min-w-[38rem] w-full border-separate border-spacing-y-1 text-left">
                   <thead>
                     <tr className="text-[10px] font-medium text-slate-500">
                       <th className="px-2 pb-0.5 font-medium">Objective</th>
@@ -470,7 +475,7 @@ export function TaskModal({
                   <tbody>
                     {draft.objectives.map((objective, index) => (
                       <tr key={objective.local_id}>
-                        <td className="rounded-l-[14px] border-y border-l border-white/10 bg-slate-950/25 p-1.5 align-middle">
+                        <td className="rounded-l-[12px] border-y border-l border-white/10 bg-slate-950/25 p-1 align-middle">
                           <input
                             className={compactInputClassName}
                             onChange={(event) =>
@@ -480,7 +485,7 @@ export function TaskModal({
                             value={objective.title}
                           />
                         </td>
-                        <td className="border-y border-white/10 bg-slate-950/25 p-1.5 align-middle">
+                        <td className="border-y border-white/10 bg-slate-950/25 p-1 align-middle">
                           <MemberSelectDropdown
                             compact
                             dropdownId={`objective-assignees-${objective.local_id}`}
@@ -492,7 +497,7 @@ export function TaskModal({
                             team={team}
                           />
                         </td>
-                        <td className="border-y border-white/10 bg-slate-950/25 p-1.5 align-middle">
+                        <td className="border-y border-white/10 bg-slate-950/25 p-1 align-middle">
                           <select
                             className={compactInputClassName}
                             onChange={(event) =>
@@ -508,10 +513,10 @@ export function TaskModal({
                             <option value="started">Started</option>
                           </select>
                         </td>
-                        <td className="rounded-r-[14px] border-y border-r border-white/10 bg-slate-950/25 p-1.5 align-middle">
+                        <td className="rounded-r-[12px] border-y border-r border-white/10 bg-slate-950/25 p-1 align-middle">
                           <div className="flex justify-end">
                             <button
-                              className="flex h-9 w-10 items-center justify-center rounded-lg border border-rose-500/30 bg-rose-500/12 text-rose-200 transition hover:bg-rose-500/20 hover:text-white"
+                              className="flex h-8 w-9 items-center justify-center rounded-lg border border-rose-500/30 bg-rose-500/12 text-rose-200 transition hover:bg-rose-500/20 hover:text-white"
                               onClick={() => removeObjective(objective.local_id)}
                               type="button"
                               aria-label={`Remove objective ${index + 1}`}
@@ -534,15 +539,15 @@ export function TaskModal({
                   </tbody>
                 </table>
               ) : (
-                <div className="rounded-[14px] border border-dashed border-white/10 px-3 py-3 text-sm text-slate-400">
+                <div className="rounded-[12px] border border-dashed border-white/10 px-3 py-2.5 text-sm text-slate-400">
                   No objectives yet.
                 </div>
               )}
             </div>
           </section>
 
-          <div className="grid gap-3 md:grid-cols-[1fr_1fr_180px]">
-            <label className="block space-y-2">
+          <div className="grid gap-2.5 md:grid-cols-[1fr_1fr_180px]">
+            <label className="block space-y-1.5">
               <span className="text-sm font-medium text-slate-200">Start Date</span>
               <input
                 className={inputClassName}
@@ -551,7 +556,7 @@ export function TaskModal({
                 value={draft.start_date}
               />
             </label>
-            <label className="block space-y-2">
+            <label className="block space-y-1.5">
               <span className="text-sm font-medium text-slate-200">End Date</span>
               <input
                 className={inputClassName}
@@ -560,7 +565,7 @@ export function TaskModal({
                 value={draft.end_date}
               />
             </label>
-            <label className="block space-y-2">
+            <label className="block space-y-1.5">
               <span className="text-sm font-medium text-slate-200">Progress</span>
               <input
                 className="w-full accent-[color:var(--accent)]"
@@ -570,14 +575,14 @@ export function TaskModal({
                 type="range"
                 value={draft.progress}
               />
-              <p className="text-xs text-slate-400">{draft.progress}% complete</p>
+              <p className="text-xs leading-4 text-slate-400">{draft.progress}% complete</p>
             </label>
           </div>
 
-          <div className="flex flex-col-reverse gap-3 border-t border-white/8 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col-reverse gap-2.5 border-t border-white/8 pt-3 sm:flex-row sm:items-center sm:justify-between">
             {mode === "edit" && task ? (
               <button
-                className="rounded-xl bg-[color:var(--danger)] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+                className="rounded-xl bg-[color:var(--danger)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
                 disabled={busy}
                 onClick={handleDelete}
                 type="button"
@@ -589,16 +594,16 @@ export function TaskModal({
                 Project {projectId}
               </span>
             )}
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex flex-col gap-2.5 sm:flex-row">
               <button
-                className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:border-white/20 hover:text-white"
+                className="rounded-xl border border-white/10 px-4 py-2 text-sm font-medium text-slate-300 transition hover:border-white/20 hover:text-white"
                 onClick={onClose}
                 type="button"
               >
                 Cancel
               </button>
               <button
-                className="rounded-xl bg-[color:var(--accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[color:var(--accent-strong)]"
+                className="rounded-xl bg-[color:var(--accent)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[color:var(--accent-strong)]"
                 disabled={busy}
                 type="submit"
               >
